@@ -20,6 +20,8 @@
   },
   "vars": {
     "VAPID_SUBJECT": "https://stockping.davidyili230.workers.dev",
-    "CHECK_INTERVAL_MS": "300000"
+    "CHECK_INTERVAL_MS": "300000",
+        "VAPID_PRIVATE_KEY": "I_xn9XortqSo4XLt6mJArCv6LVQaTyvQv4woscK5h64",
+    "VAPID_PUBLIC_KEY": "BP9B3YpeUrG4LIIL3u_LYLEhibDEna9C2Z4U90nFi8l1OM9iNwGldIZe4lafICUxSuKULYYFrh8gxeLisR572rM"
   }
 }
