@@ -1,0 +1,18 @@
+{
+  "name": "stockping-cloudflare",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Apple Store pickup restock alerts on Cloudflare Workers, D1, Cron and iPhone Web Push.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "keys": "node scripts/generate-vapid.js",
+    "db:local": "wrangler d1 execute stockping-db --local --file=./schema.sql",
+    "db:remote": "wrangler d1 execute stockping-db --remote --file=./schema.sql",
+    "check": "node --check src/index.js && node --check src/inventory.js && node --check public/app.js && node --check public/sw.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": { "@mmmike/web-push": "^1.0.1" },
+  "devDependencies": { "wrangler": "^4.0.0" }
+}
