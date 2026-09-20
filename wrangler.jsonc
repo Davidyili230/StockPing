@@ -12,7 +12,7 @@
     {
       "binding": "DB",
       "database_name": "stockping-db",
-      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+      "database_id": "e4a8b60f-3d7f-4e45-a0ce-a6680d9f127f"
     }
   ],
   "triggers": {
