@@ -1,103 +1,11 @@
-import { sendPushNotification } from '@mmmike/web-push/send';
-import { checkPickupInventory, InventoryError } from './inventory.js';
-
-const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
-const normalizePart = v => String(v || '').trim().toUpperCase();
-const normalizeLocation = v => String(v || '').trim();
-const parseStores = value => { try { return JSON.parse(value || '[]'); } catch { return []; } };
-
-function safeWatch(w) {
-  return { id:w.id, deviceId:w.device_id, label:w.label, part:w.part, location:w.location, radius:w.radius, productUrl:w.product_url, status:w.status, stores:parseStores(w.stores_json), lastCheckedAt:w.last_checked_at, lastError:w.last_error, createdAt:w.created_at };
-}
-async function body(request) { try { return await request.json(); } catch { return {}; } }
-async function getWatch(env, id, deviceId) { return env.DB.prepare('SELECT * FROM watches WHERE id=? AND device_id=?').bind(id, deviceId).first(); }
-
-async function saveSubscription(env, deviceId, subscription) {
-  await env.DB.prepare(`INSERT INTO subscriptions(device_id,subscription_json,updated_at) VALUES(?,?,?) ON CONFLICT(device_id) DO UPDATE SET subscription_json=excluded.subscription_json, updated_at=excluded.updated_at`)
-    .bind(deviceId, JSON.stringify(subscription), new Date().toISOString()).run();
-}
-async function sendPush(env, deviceId, payload) {
-  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) throw new Error('Push is not configured.');
-  const row = await env.DB.prepare('SELECT subscription_json FROM subscriptions WHERE device_id=?').bind(deviceId).first();
-  if (!row) return false;
-  let subscription; try { subscription = JSON.parse(row.subscription_json); } catch { return false; }
-  const delivered = await sendPushNotification(subscription, payload, { publicKey:env.VAPID_PUBLIC_KEY, privateKey:env.VAPID_PRIVATE_KEY, subject:env.VAPID_SUBJECT || 'mailto:admin@example.com' }, { ttl:300, urgency:'high', timeoutMs:15000 });
-  if (!delivered) await env.DB.prepare('DELETE FROM subscriptions WHERE device_id=?').bind(deviceId).run();
-  return delivered;
-}
-
-async function runChecksForLocation(env, location, force=false) {
-  const loc = normalizeLocation(location); if (!loc) return;
-  if (!force) {
-    const backoff = await env.DB.prepare('SELECT until_ms FROM location_backoff WHERE location=?').bind(loc).first();
-    if (backoff && Number(backoff.until_ms) > Date.now()) return;
-  }
-  const result = await env.DB.prepare('SELECT * FROM watches WHERE location=? ORDER BY created_at').bind(loc).all();
-  const watches = result.results || []; if (!watches.length) return;
-  const parts = [...new Set(watches.map(w => w.part))].slice(0,20);
-  try {
-    const inventory = await checkPickupInventory({ parts, location:loc });
-    for (const watch of watches) {
-      const returned = inventory.byPart[watch.part] || [];
-      if (!returned.length) {
-        await env.DB.prepare(`UPDATE watches SET status='unknown',stores_json='[]',last_checked_at=?,last_error=? WHERE id=?`).bind(inventory.checkedAt,'Apple returned no inventory data for this part number. Check the SKU and try again.',watch.id).run();
-        continue;
-      }
-      const available = returned.filter(s => (s.distance == null || s.distance <= Number(watch.radius)) && s.available);
-      const nowAvailable = available.length > 0;
-      let notified = Number(watch.notified_available || 0);
-      if (nowAvailable && watch.status !== 'available' && !notified) {
-        const names = available.slice(0,3).map(s=>s.storeName).join(', ');
-        const more = available.length > 3 ? ` +${available.length-3} more` : '';
-        try {
-          await sendPush(env, watch.device_id, { title:`${watch.label} is in stock`, body:`${names}${more}. Tap to open Apple.`, url:watch.product_url || 'https://www.apple.com/store', tag:`stock-${watch.id}` });
-          notified = 1;
-        } catch (e) { console.log('Push failed', e?.message || String(e)); }
-      } else if (!nowAvailable) notified = 0;
-      await env.DB.prepare(`UPDATE watches SET status=?,stores_json=?,last_checked_at=?,last_error=NULL,notified_available=? WHERE id=?`).bind(nowAvailable?'available':'unavailable',JSON.stringify(available),inventory.checkedAt,notified,watch.id).run();
-    }
-    await env.DB.prepare('DELETE FROM location_backoff WHERE location=?').bind(loc).run();
-  } catch (error) {
-    const status = error instanceof InventoryError ? error.status : 0;
-    const message = error?.message || 'Inventory check failed.';
-    if (status === 429 || status === 541) await env.DB.prepare(`INSERT INTO location_backoff(location,until_ms) VALUES(?,?) ON CONFLICT(location) DO UPDATE SET until_ms=excluded.until_ms`).bind(loc,Date.now()+10*60*1000).run();
-    await env.DB.prepare(`UPDATE watches SET status='unknown',last_checked_at=?,last_error=? WHERE location=?`).bind(new Date().toISOString(),message,loc).run();
-  }
-}
-async function checkAll(env) {
-  const rows = await env.DB.prepare('SELECT DISTINCT location FROM watches ORDER BY location LIMIT 25').all();
-  for (const row of rows.results || []) await runChecksForLocation(env,row.location,false);
-}
-
-async function api(request, env, url) {
-  const path=url.pathname;
-  if (path==='/api/health' && request.method==='GET') return json({ok:true,service:'StockPing',platform:'Cloudflare Workers'});
-  if (path==='/api/config' && request.method==='GET') return json({pushConfigured:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),vapidPublicKey:env.VAPID_PUBLIC_KEY||'',checkIntervalMs:Number(env.CHECK_INTERVAL_MS||300000)});
-  if (path==='/api/watches' && request.method==='GET') {
-    const deviceId=url.searchParams.get('deviceId')||''; if(!deviceId)return json({error:'deviceId is required'},400);
-    const rows=await env.DB.prepare('SELECT * FROM watches WHERE device_id=? ORDER BY created_at DESC').bind(deviceId).all(); return json((rows.results||[]).map(safeWatch));
-  }
-  if (path==='/api/subscriptions' && request.method==='POST') {
-    const b=await body(request); if(!b.deviceId||!b.subscription?.endpoint)return json({error:'deviceId and a valid push subscription are required.'},400);
-    await saveSubscription(env,String(b.deviceId),b.subscription); return json({ok:true});
-  }
-  if (path==='/api/watches' && request.method==='POST') {
-    const b=await body(request), deviceId=String(b.deviceId||'').trim(), part=normalizePart(b.part), location=normalizeLocation(b.location), label=String(b.label||part).trim().slice(0,120), productUrl=String(b.productUrl||'').trim().slice(0,500), radius=Math.min(250,Math.max(1,Number(b.radius||25)));
-    if(!deviceId||!part||!location)return json({error:'deviceId, Apple part number, and ZIP/postal code are required.'},400);
-    if(!/^[A-Z0-9-]+(?:\/[A-Z])?$/.test(part))return json({error:'That does not look like an Apple part number/SKU.'},400);
-    const id=crypto.randomUUID(), created=new Date().toISOString();
-    await env.DB.prepare(`INSERT INTO watches(id,device_id,label,part,location,radius,product_url,status,stores_json,created_at) VALUES(?,?,?,?,?,?,?,'pending','[]',?)`).bind(id,deviceId,label,part,location,radius,productUrl,created).run();
-    const w=await getWatch(env,id,deviceId); return json(safeWatch(w),201);
-  }
-  const match=path.match(/^\/api\/watches\/([^/]+)$/);
-  if(match && request.method==='DELETE') { const deviceId=url.searchParams.get('deviceId')||''; const r=await env.DB.prepare('DELETE FROM watches WHERE id=? AND device_id=?').bind(decodeURIComponent(match[1]),deviceId).run(); return json({ok:(r.meta?.changes||0)>0},(r.meta?.changes||0)>0?200:404); }
-  const check=path.match(/^\/api\/check\/([^/]+)$/);
-  if(check && request.method==='POST') { const b=await body(request); const w=await getWatch(env,decodeURIComponent(check[1]),String(b.deviceId||'')); if(!w)return json({error:'Watch not found.'},404); await runChecksForLocation(env,w.location,true); return json(safeWatch(await getWatch(env,w.id,w.device_id))); }
-  if(path==='/api/test-push' && request.method==='POST') { const b=await body(request); try { const ok=await sendPush(env,String(b.deviceId||''),{title:'StockPing is ready',body:'You will get an alert here when a watched Apple product becomes available.',url:'/',tag:'stockping-test'}); return ok?json({ok:true}):json({error:'No active push subscription saved for this device.'},404); } catch(e){ return json({error:`Push test failed: ${e.message}`},502); } }
-  return json({error:'Not found'},404);
-}
-
-export default {
-  async fetch(request, env) { const url=new URL(request.url); if(url.pathname.startsWith('/api/')) return api(request,env,url); return env.ASSETS.fetch(request); },
-  async scheduled(_controller, env, ctx) { ctx.waitUntil(checkAll(env)); }
-};
+import{sendPushNotification}from"@mmmike/web-push/send";import{checkPickupInventory,InventoryError,locationKey,parseLocationKey}from"./inventory.js";import{publicCatalog,resolveCatalogSelection}from"./catalog.js";
+const json=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{"content-type":"application/json","cache-control":"no-store"}}),body=async r=>{try{return await r.json()}catch{return{}}},parse=v=>{try{return JSON.parse(v||"[]")}catch{return[]}},safe=w=>({id:w.id,label:w.label,location:w.location,status:w.status,stores:parse(w.stores_json),lastCheckedAt:w.last_checked_at,lastError:w.last_error});
+async function push(env,deviceId,payload){if(!env.VAPID_PUBLIC_KEY||!env.VAPID_PRIVATE_KEY)throw Error("Push is not configured.");const row=await env.DB.prepare("SELECT subscription_json FROM subscriptions WHERE device_id=?").bind(deviceId).first();if(!row)return false;const ok=await sendPushNotification(JSON.parse(row.subscription_json),payload,{publicKey:env.VAPID_PUBLIC_KEY,privateKey:env.VAPID_PRIVATE_KEY,subject:env.VAPID_SUBJECT||"mailto:admin@example.com"},{ttl:300,urgency:"high"});if(!ok)await env.DB.prepare("DELETE FROM subscriptions WHERE device_id=?").bind(deviceId).run();return ok}
+async function checkLocation(env,key,force=false){if(!force){const b=await env.DB.prepare("SELECT until_ms FROM location_backoff WHERE location=?").bind(key).first();if(b&&+b.until_ms>Date.now())return}const rows=(await env.DB.prepare("SELECT * FROM watches WHERE location=?").bind(key).all()).results||[];if(!rows.length)return;try{const inv=await checkPickupInventory({parts:[...new Set(rows.map(w=>w.part))],location:key});for(const w of rows){const nearest=(inv.byPart[w.part]||[]).slice(0,12);if(!nearest.length){await env.DB.prepare("UPDATE watches SET status='unknown',stores_json='[]',last_checked_at=?,last_error=? WHERE id=?").bind(inv.checkedAt,"Apple returned no store data.",w.id).run();continue}const available=nearest.filter(s=>s.available),now=available.length>0;let notified=+w.notified_available||0;if(now&&w.status!=="available"&&!notified){try{await push(env,w.device_id,{title:`${w.label} is in stock`,body:`${available.slice(0,3).map(s=>s.storeName).join(", ")}. Tap to view Apple.`,url:w.product_url||"https://www.apple.com/store"});notified=1}catch(e){console.log(e.message)}}else if(!now)notified=0;await env.DB.prepare("UPDATE watches SET status=?,stores_json=?,last_checked_at=?,last_error=NULL,notified_available=? WHERE id=?").bind(now?"available":"unavailable",JSON.stringify(nearest),inv.checkedAt,notified,w.id).run()}await env.DB.prepare("DELETE FROM location_backoff WHERE location=?").bind(key).run()}catch(e){if(e.status===429||e.status===541)await env.DB.prepare("INSERT INTO location_backoff(location,until_ms) VALUES(?,?) ON CONFLICT(location) DO UPDATE SET until_ms=excluded.until_ms").bind(key,Date.now()+600000).run();await env.DB.prepare("UPDATE watches SET status='unknown',last_checked_at=?,last_error=? WHERE location=?").bind(new Date().toISOString(),e.message,key).run()}}
+async function api(req,env,u){const p=u.pathname;if(p==="/api/health")return json({ok:true});if(p==="/api/config")return json({pushConfigured:!!(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),vapidPublicKey:env.VAPID_PUBLIC_KEY||"",checkIntervalMs:+env.CHECK_INTERVAL_MS||300000});if(p==="/api/catalog")return json({products:publicCatalog()});
+if(p==="/api/stores"&&req.method==="POST"){const b=await body(req),s=resolveCatalogSelection(b.catalogProductId,b.configurationIndex);if(!s)return json({error:"Choose a model first."},400);if(!s.configuration.part)return json({error:"This model is listed, but its verified Apple inventory identifier has not been configured yet."},409);try{const inv=await checkPickupInventory({parts:[s.configuration.part],location:b.location,country:String(b.country||"US").toUpperCase()});return json({stores:(inv.byPart[s.configuration.part]||[]).slice(0,12),checkedAt:inv.checkedAt})}catch(e){return json({error:e.message},502)}}
+if(p==="/api/watches"&&req.method==="GET"){const id=u.searchParams.get("deviceId");const r=await env.DB.prepare("SELECT * FROM watches WHERE device_id=? ORDER BY created_at DESC").bind(id).all();return json((r.results||[]).map(safe))}
+if(p==="/api/subscriptions"&&req.method==="POST"){const b=await body(req);if(!b.deviceId||!b.subscription?.endpoint)return json({error:"Invalid subscription."},400);await env.DB.prepare("INSERT INTO subscriptions(device_id,subscription_json,updated_at) VALUES(?,?,?) ON CONFLICT(device_id) DO UPDATE SET subscription_json=excluded.subscription_json,updated_at=excluded.updated_at").bind(b.deviceId,JSON.stringify(b.subscription),new Date().toISOString()).run();return json({ok:true})}
+if(p==="/api/watches"&&req.method==="POST"){const b=await body(req),s=resolveCatalogSelection(b.catalogProductId,b.configurationIndex);if(!b.deviceId||!b.location||!s)return json({error:"Device, model and postal code are required."},400);if(!s.configuration.part)return json({error:"This model needs a verified Apple inventory identifier before it can be watched."},409);const key=locationKey(String(b.country||"US").toUpperCase(),b.location),id=crypto.randomUUID(),label=`${s.product.name} — ${s.configuration.name}`;await env.DB.prepare("INSERT INTO watches(id,device_id,label,part,location,radius,product_url,status,stores_json,created_at) VALUES(?,?,?,?,?,9999,?,'pending','[]',?)").bind(id,b.deviceId,label,s.configuration.part,key,s.configuration.productUrl||"",new Date().toISOString()).run();return json({ok:true,id},201)}
+let m=p.match(/^\/api\/watches\/([^/]+)$/);if(m&&req.method==="DELETE"){const d=u.searchParams.get("deviceId");await env.DB.prepare("DELETE FROM watches WHERE id=? AND device_id=?").bind(m[1],d).run();return json({ok:true})}m=p.match(/^\/api\/check\/([^/]+)$/);if(m&&req.method==="POST"){const b=await body(req),w=await env.DB.prepare("SELECT * FROM watches WHERE id=? AND device_id=?").bind(m[1],b.deviceId).first();if(!w)return json({error:"Watch not found."},404);await checkLocation(env,w.location,true);return json({ok:true})}if(p==="/api/test-push"&&req.method==="POST"){const b=await body(req);try{return await push(env,b.deviceId,{title:"StockPing is ready",body:"Notifications are working.",url:"/"})?json({ok:true}):json({error:"No active push subscription."},404)}catch(e){return json({error:e.message},502)}}return json({error:"Not found"},404)}
+export default{async fetch(req,env){const u=new URL(req.url);return u.pathname.startsWith("/api/")?api(req,env,u):env.ASSETS.fetch(req)},async scheduled(c,env,ctx){ctx.waitUntil((async()=>{const r=await env.DB.prepare("SELECT DISTINCT location FROM watches LIMIT 25").all();for(const x of r.results||[])await checkLocation(env,x.location)})())}};

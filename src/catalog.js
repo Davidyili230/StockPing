@@ -1,0 +1,9 @@
+export const PRODUCT_CATALOG=[
+{id:"iphone-18-pro",name:"iPhone 18 Pro",configurations:[{name:"256GB — Black",part:"",productUrl:"https://www.apple.com/shop/buy-iphone/iphone-18-pro"},{name:"512GB — Black",part:"",productUrl:"https://www.apple.com/shop/buy-iphone/iphone-18-pro"},{name:"1TB — Black",part:"",productUrl:"https://www.apple.com/shop/buy-iphone/iphone-18-pro"}]},
+{id:"iphone-18-pro-max",name:"iPhone 18 Pro Max",configurations:[{name:"256GB — Black",part:"",productUrl:"https://www.apple.com/shop/buy-iphone/iphone-18-pro"},{name:"512GB — Black",part:"",productUrl:"https://www.apple.com/shop/buy-iphone/iphone-18-pro"},{name:"1TB — Black",part:"",productUrl:"https://www.apple.com/shop/buy-iphone/iphone-18-pro"}]},
+{id:"iphone-17",name:"iPhone 17",configurations:[{name:"256GB",part:"",productUrl:"https://www.apple.com/shop/buy-iphone/iphone-17"},{name:"512GB",part:"",productUrl:"https://www.apple.com/shop/buy-iphone/iphone-17"}]},
+{id:"ipad",name:"iPad",configurations:[{name:"128GB — Wi‑Fi",part:"",productUrl:"https://www.apple.com/shop/buy-ipad/ipad"},{name:"256GB — Wi‑Fi",part:"",productUrl:"https://www.apple.com/shop/buy-ipad/ipad"}]},
+{id:"macbook-pro",name:"MacBook Pro",configurations:[{name:"14-inch",part:"",productUrl:"https://www.apple.com/shop/buy-mac/macbook-pro"}]}
+];
+export const publicCatalog=()=>PRODUCT_CATALOG.map(({id,name,configurations})=>({id,name,configurations:configurations.map(({name},index)=>({name,index}))}));
+export function resolveCatalogSelection(id,index){const product=PRODUCT_CATALOG.find(p=>p.id===String(id||""));const i=Number(index);const configuration=product&&Number.isInteger(i)?product.configurations[i]:null;return product&&configuration?{product,configuration}:null;}
