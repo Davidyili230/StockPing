@@ -19,7 +19,7 @@
     "crons": ["*/5 * * * *"]
   },
   "vars": {
-    "VAPID_SUBJECT": "mailto:CHANGE-ME@example.com",
+    "VAPID_SUBJECT": "https://stockping.davidyili230.workers.dev",
     "CHECK_INTERVAL_MS": "300000"
   }
 }
