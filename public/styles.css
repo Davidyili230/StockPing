@@ -24,3 +24,26 @@
 .watch-monitor-line{display:flex;justify-content:space-between;gap:12px;margin-top:12px;padding:9px 10px;border-radius:10px;background:#0a0d11;color:var(--muted);font-size:9px}.watch-monitor-line span:first-child{color:#a9b1bd}
 .available-store>span:first-child{display:flex;flex-direction:column;gap:2px}.available-store small{color:var(--muted);font-size:8px}.available-store>span:last-child{color:var(--green)!important}
 @media(max-width:620px){.family-picker{grid-template-columns:1fr;gap:7px}.family-card{min-height:74px;flex-direction:column;justify-content:center;padding:9px 6px;text-align:center;gap:5px}.family-card small{display:none}.family-icon{width:30px;height:30px}.family-card strong{font-size:10px}.option-chip{min-height:44px;flex:1 1 auto}.watch-cta{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom));z-index:8;background:#0b0e13f2;backdrop-filter:blur(18px);box-shadow:0 12px 35px #0009}.watch-cadence{align-items:flex-start;margin-left:0;width:100%}.watch-monitor-line{flex-direction:column;gap:4px}}
+
+/* iPhone-only interaction polish */
+.hero{padding:38px 2px 30px}
+.hero>p{margin:18px 0 22px}
+.panel{padding:21px}
+.watches-section{padding-top:38px}
+.empty-mini{min-height:112px}
+.model-chips{display:grid;grid-template-columns:repeat(3,1fr)}
+.model-chip{justify-content:center;text-align:center}
+.compact-check{padding:10px 13px;font-size:10px;color:#b8c7ef}
+.search-row{min-height:38px}
+.stats{margin-top:34px}
+@media(max-width:620px){
+  .hero{padding-top:28px;padding-bottom:24px}
+  .hero h1{font-size:40px}
+  .hero>p{margin:16px 0 19px}
+  .model-chips{grid-template-columns:1fr}
+  .model-chip{min-height:42px}
+  .panel{padding:15px}
+  .watches-section{padding-top:32px}
+  .watch-cta{position:static;box-shadow:none}
+  .empty-mini{min-height:96px}
+}
