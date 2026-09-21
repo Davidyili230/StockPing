@@ -47,3 +47,15 @@
   .watch-cta{position:static;box-shadow:none}
   .empty-mini{min-height:96px}
 }
+
+/* One-tap Apple purchase handoff */
+.store-status-actions{display:flex;align-items:flex-end;flex-direction:column;gap:7px}
+.apple-buy-mini,.apple-buy{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-weight:780}
+.apple-buy-mini{color:#a9bdff;font-size:9px}
+.apple-buy{width:100%;margin-top:13px;padding:12px 14px;border-radius:13px;background:#f5f7fa;color:#0b0d10;font-size:11px;box-shadow:0 8px 24px #0004}
+.apple-buy span{margin-left:6px;color:#4d5f8f}
+@media(max-width:620px){
+  .store-status-actions{grid-column:2;align-items:flex-start}
+  .apple-buy-mini{padding:3px 0}
+  .apple-buy{min-height:46px}
+}
