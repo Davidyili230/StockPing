@@ -3,7 +3,7 @@
 .available-empty{padding:12px 0;color:var(--muted);font-size:10px;line-height:1.5}.store-list .store span:last-child{color:var(--green)}
 
 /* Product-first configurator */
-.family-picker{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:2px}
+.family-picker{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:2px}
 .family-card{display:flex;align-items:center;gap:10px;min-height:68px;padding:12px 14px;border:1px solid var(--line);border-radius:16px;background:#0a0c10;color:var(--text);text-align:left;transition:.18s ease}
 .family-card:hover{border-color:#ffffff24;background:#11151d}
 .family-card.active{border-color:#7197ff88;background:linear-gradient(180deg,#18233b,#111722);box-shadow:inset 0 0 0 1px #7197ff22,0 10px 28px #0003}
