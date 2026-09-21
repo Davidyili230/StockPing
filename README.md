@@ -90,3 +90,22 @@ Apple's pickup endpoint is public-facing but undocumented and can change or rate
 
 ## Not affiliated with Apple
 StockPing is independent and is not affiliated with or endorsed by Apple Inc.
+
+
+## PC hardware retailer tracking
+
+StockPing also supports the ASUS TUF Gaming GeForce RTX 5090 OC Edition (TUF-RTX5090-O32G-GAMING).
+
+Current sources:
+- Best Buy online availability (SKU 6614122)
+- Best Buy nearby pickup when `BESTBUY_API_KEY` is configured
+- Micro Center pickup availability (SKU 800078)
+- B&H online availability (MFR TUF-RTX5090-O32G-GAMING)
+
+For precise Best Buy pickup results by postal code, create a Best Buy Developer API key and store it as a Cloudflare Worker secret:
+
+```bash
+npx wrangler secret put BESTBUY_API_KEY
+```
+
+Do not commit the API key to `wrangler.jsonc` or Git.
