@@ -10,7 +10,7 @@ async function updateWatchInventory(env,w,stores,checkedAt,error=null){
 }
 const DEFAULT_SCHEDULE={activeStart:"09:00",activeEnd:"02:00",timezone:"America/New_York"};
 async function ensureSettingsTable(env){await env.DB.prepare("CREATE TABLE IF NOT EXISTS device_settings (device_id TEXT PRIMARY KEY, active_start TEXT NOT NULL DEFAULT '09:00', active_end TEXT NOT NULL DEFAULT '02:00', timezone TEXT NOT NULL DEFAULT 'America/New_York', updated_at TEXT NOT NULL)").run()}
-function validTime(v){return /^([01]\\d|2[0-3]):[0-5]\\d$/.test(String(v||""))}
+function validTime(v){return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(v||""))}
 function validTimezone(v){try{new Intl.DateTimeFormat("en-US",{timeZone:v}).format();return true}catch{return false}}
 function scheduleActive(row){const start=row.active_start||DEFAULT_SCHEDULE.activeStart,end=row.active_end||DEFAULT_SCHEDULE.activeEnd,tz=row.timezone||DEFAULT_SCHEDULE.timezone;if(start===end)return true;const parts=new Intl.DateTimeFormat("en-US",{timeZone:tz,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date()),h=Number(parts.find(x=>x.type==="hour")?.value),m=Number(parts.find(x=>x.type==="minute")?.value),now=h*60+m,toMin=v=>{const[a,b]=v.split(":").map(Number);return a*60+b},a=toMin(start),b=toMin(end);return a<b?now>=a&&now<b:now>=a||now<b}
 async function checkLocation(env,key,force=false){
