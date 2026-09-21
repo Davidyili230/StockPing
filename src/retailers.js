@@ -9,6 +9,9 @@ export const RETAIL_PRODUCT={
   productUrl:"https://www.asus.com/us/motherboards-components/graphics-cards/tuf-gaming/tuf-rtx5090-o32g-gaming/"
 };
 const URLS={
+  nvidia:"https://marketplace.nvidia.com/en-us/consumer/graphics-cards/asus-tuf-gaming-geforce-rtx-5090-32gb-oc-edition/",
+  asus:"https://www.asus.com/us/motherboards-components/graphics-cards/tuf-gaming/tuf-rtx5090-o32g-gaming/",
+  asusCatalog:"https://www.asus.com/us/motherboards-components/graphics-cards/tuf-gaming/filter?Category=NVIDIA&Series=TUF-Gaming&Spec=16332",
   bestBuy:"https://www.bestbuy.com/product/asus-tuf-gaming-nvidia-geforce-rtx-5090-32gb-gddr7-pci-express-5-0-graphics-card-black/6614122",
   microCenter:"https://www.microcenter.com/product/690033/asus-nvidia-geforce-rtx-5090-tuf-gaming-overclocked-triple-fan-32gb-gddr7-pcie-50-graphics-card_hatchfeed?storeid=029",
   bh:"https://www.bhphotovideo.com/c/product/1875902-REG/asus_tuf_rtx5090_o32g_gaming_geforce_rtx_5090_tuf.html"
@@ -17,6 +20,27 @@ const headers={"user-agent":"Mozilla/5.0 (compatible; StockPing/2.0)","accept":"
 const clean=s=>String(s||"").replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;|&#160;/gi," ").replace(/&amp;/gi,"&").replace(/\s+/g," ").trim();
 async function html(url){const r=await fetch(url,{headers});if(!r.ok)throw Error("HTTP "+r.status);return clean(await r.text())}
 async function postalState(postal){const z=String(postal||"").trim().slice(0,5);if(!/^\d{5}$/.test(z))return"";try{const r=await fetch("https://api.zippopotam.us/us/"+z);if(!r.ok)return"";const d=await r.json();return String(d?.places?.[0]?.["state abbreviation"]||"").toUpperCase()}catch{return""}}
+function source({id,name,url,state,detail}){return{storeNumber:id,storeName:name,city:"Online",state:"",distance:null,available:state==="available",inventoryState:state,pickupDisplay:detail,url,channel:"online",retailer:name}}
+async function nvidia(){
+  try{
+    const t=(await html(URLS.nvidia)).toLowerCase();
+    const exact=t.includes("asus tuf gaming geforce rtx 5090 32gb oc edition");
+    if(!exact)return source({id:"nvidia-online",name:"NVIDIA Marketplace",url:URLS.nvidia,state:"unknown",detail:"Could not verify exact product"});
+    if(t.includes("add to cart"))return source({id:"nvidia-online",name:"NVIDIA Marketplace",url:URLS.nvidia,state:"available",detail:"Add to Cart"});
+    if(t.includes("out of stock"))return source({id:"nvidia-online",name:"NVIDIA Marketplace",url:URLS.nvidia,state:"unavailable",detail:"Out of stock"});
+    return source({id:"nvidia-online",name:"NVIDIA Marketplace",url:URLS.nvidia,state:"unknown",detail:"Check availability"})
+  }catch{return source({id:"nvidia-online",name:"NVIDIA Marketplace",url:URLS.nvidia,state:"unknown",detail:"Status unavailable"})}
+}
+async function asus(){
+  try{
+    const t=(await html(URLS.asusCatalog)).toLowerCase(),needle="asus tuf gaming geforce rtx 5090 32gb gddr7 oc edition",i=t.indexOf(needle);
+    if(i<0)return source({id:"asus-online",name:"ASUS Store",url:URLS.asus,state:"unknown",detail:"Could not verify exact product"});
+    const segment=t.slice(i,i+1200);
+    if(/\bbuy\b|add to cart|in stock on eshop/.test(segment))return source({id:"asus-online",name:"ASUS Store",url:URLS.asus,state:"available",detail:"Buy"});
+    if(segment.includes("notify me")||segment.includes("out of stock"))return source({id:"asus-online",name:"ASUS Store",url:URLS.asus,state:"unavailable",detail:"Notify me"});
+    return source({id:"asus-online",name:"ASUS Store",url:URLS.asus,state:"unknown",detail:"Where to buy"})
+  }catch{return source({id:"asus-online",name:"ASUS Store",url:URLS.asus,state:"unknown",detail:"Status unavailable"})}
+}
 async function bestBuy(env,postal){
   const out=[];
   if(env.BESTBUY_API_KEY){
@@ -48,7 +72,7 @@ async function microCenter(postal){
 export async function checkRetailInventory({part,location,env}){
   if(part!==RETAIL_PRODUCT.part)throw Error("Unknown retail product.");
   const postal=String(location||"").includes("|")?String(location).split("|").slice(1).join("|"):String(location||"");
-  const groups=await Promise.all([bestBuy(env,postal),bh(),microCenter(postal)]),stores=groups.flat();
+  const groups=await Promise.all([nvidia(),asus(),bestBuy(env,postal),bh(),microCenter(postal)]),stores=groups.flat();
   if(!stores.length)throw Error("Retailers did not return inventory data.");
   stores.sort((a,b)=>Number(b.available)-Number(a.available)||(a.distance??99999)-(b.distance??99999));
   return{checkedAt:new Date().toISOString(),stores}
