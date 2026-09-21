@@ -8,7 +8,8 @@ export const PRODUCT_CATALOG=[
 {id:"apple-watch-se-3",name:"Apple Watch SE 3",shopPath:"/shop/buy-watch/apple-watch-se"},
 {id:"airpods-5",name:"AirPods 5",shopPath:"/shop/buy-airpods/airpods-5"},
 {id:"airpods-pro-3",name:"AirPods Pro 3",shopPath:"/shop/buy-airpods/airpods-pro-3"},
-{id:"airpods-max-2",name:"AirPods Max 2",shopPath:"/shop/buy-airpods/airpods-max-2"}
+{id:"airpods-max-2",name:"AirPods Max 2",shopPath:"/shop/buy-airpods/airpods-max-2"},
+{id:"asus-tuf-rtx5090-oc",name:"ASUS TUF Gaming GeForce RTX 5090 OC Edition",kind:"retail"}
 ];
 export const publicCatalog=()=>PRODUCT_CATALOG.map(({id,name})=>({id,name,configurations:[{name:"Automatic — choose from Apple",index:0}]}));
 const uniq=a=>[...new Set(a.filter(Boolean))];
