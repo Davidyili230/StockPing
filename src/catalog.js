@@ -3,12 +3,6 @@ export const PRODUCT_CATALOG=[
 {id:"iphone-18-pro",name:"iPhone 18 Pro",shopPath:"/shop/buy-iphone/iphone-18-pro"},
 {id:"iphone-18-pro-max",name:"iPhone 18 Pro Max",shopPath:"/shop/buy-iphone/iphone-18-pro"},
 {id:"iphone-17",name:"iPhone 17",shopPath:"/shop/buy-iphone/iphone-17"},
-{id:"apple-watch-series-12",name:"Apple Watch Series 12",shopPath:"/shop/buy-watch/apple-watch"},
-{id:"apple-watch-ultra-4",name:"Apple Watch Ultra 4",shopPath:"/shop/buy-watch/apple-watch-ultra"},
-{id:"apple-watch-se-3",name:"Apple Watch SE 3",shopPath:"/shop/buy-watch/apple-watch-se"},
-{id:"airpods-5",name:"AirPods 5",shopPath:"/shop/buy-airpods/airpods-5"},
-{id:"airpods-pro-3",name:"AirPods Pro 3",shopPath:"/shop/buy-airpods/airpods-pro-3"},
-{id:"airpods-max-2",name:"AirPods Max 2",shopPath:"/shop/buy-airpods/airpods-max-2"},
 {id:"asus-tuf-rtx5090-oc",name:"ASUS TUF Gaming GeForce RTX 5090 OC Edition",kind:"retail"}
 ];
 export const publicCatalog=()=>PRODUCT_CATALOG.map(({id,name})=>({id,name,configurations:[{name:"Automatic — choose from Apple",index:0}]}));
