@@ -5,7 +5,7 @@ async function updateWatchInventory(env,w,stores,checkedAt,error=null){
   const nearest=(stores||[]).slice(0,12);
   if(!nearest.length){await env.DB.prepare("UPDATE watches SET status='unknown',stores_json='[]',last_checked_at=?,last_error=? WHERE id=?").bind(checkedAt,error||"No inventory data returned.",w.id).run();return}
   const available=nearest.filter(s=>s.available),unknown=nearest.filter(s=>s.inventoryState==="unknown"),now=available.length>0,state=now?"available":unknown.length?"unknown":"unavailable";let notified=+w.notified_available||0;
-  if(now&&w.status!=="available"&&!notified){try{const names=available.slice(0,3).map(s=>s.storeName).join(", ");await push(env,w.device_id,{title:`${w.label} is in stock`,body:`${names}. Tap to view retailer.`,url:available[0]?.url||w.product_url||"/"});notified=1}catch(e){console.log(e.message)}}else if(state==="unavailable")notified=0;
+  if(now&&w.status!=="available"&&!notified){try{const names=available.slice(0,3).map(s=>s.storeName).join(", ");await push(env,w.device_id,{title:`${w.label} is in stock`,body:`${names}. Tap to view availability.`,url:available[0]?.url||w.product_url||"/"});notified=1}catch(e){console.log(e.message)}}else if(state==="unavailable")notified=0;
   await env.DB.prepare("UPDATE watches SET status=?,stores_json=?,last_checked_at=?,last_error=?,notified_available=? WHERE id=?").bind(state,JSON.stringify(nearest),checkedAt,error,notified,w.id).run()
 }
 async function checkLocation(env,key,force=false){
