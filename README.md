@@ -6,7 +6,7 @@ This edition is built for **Cloudflare Workers + D1 + Cron Triggers**. It does n
 
 ## What changed from the Render build
 - Express/local JSON storage replaced by a Cloudflare Worker API + D1.
-- `setInterval` replaced by a Cloudflare Cron Trigger every 5 minutes.
+- `setInterval` replaced by a Cloudflare Cron Trigger every 1 minute.
 - Node `web-push` replaced by an edge-native Web Crypto push sender.
 - Static PWA assets are deployed together with the Worker.
 - Render/Docker files are intentionally removed.
@@ -78,7 +78,7 @@ After the first working deployment, you can connect the GitHub repository in Clo
 On iPhone, Web Push requires the web app to be installed to the Home Screen (iOS/iPadOS 16.4+).
 
 ## Automatic checks
-`wrangler.jsonc` contains `*/5 * * * *`, so Cloudflare invokes the scheduled checker every 5 minutes. The app batches up to 20 SKUs for each location and backs off a location for 10 minutes after Apple returns HTTP 429 or 541.
+`wrangler.jsonc` contains `* * * * *`, so Cloudflare invokes the scheduled checker every 1 minute. The app batches up to 20 SKUs for each location and backs off a location for 10 minutes after Apple returns HTTP 429 or 541.
 
 ## Inventory caveat
 Apple's pickup endpoint is public-facing but undocumented and can change or rate-limit automated requests. StockPing reports failures as **Unknown**, not Out of stock. An alert does not reserve inventory.
