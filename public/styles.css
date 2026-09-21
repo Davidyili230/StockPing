@@ -67,3 +67,18 @@
   .push-card #notifyBtn{grid-column:1/3;width:100%}
   .push-card #testBtn{grid-column:3;width:100%;white-space:nowrap}
 }
+
+/* Configurable monitoring hours */
+.schedule-panel{margin-top:20px;padding:21px;border:1px solid var(--line);border-radius:var(--r);background:linear-gradient(180deg,#12151a,#0d0f13)}
+.schedule-panel .section-heading{margin-bottom:16px}
+.schedule-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}
+.schedule-copy{grid-column:1/3;display:flex;flex-direction:column;gap:4px;padding:2px}
+.schedule-copy strong{font-size:11px;color:#d5d9e0}.schedule-copy span{font-size:9px;color:var(--muted)}
+#saveScheduleBtn{grid-column:3;grid-row:1/3;align-self:stretch;min-width:118px}
+#scheduleStatus{align-self:center}
+@media(max-width:620px){
+  .schedule-panel{padding:15px}
+  .schedule-grid{grid-template-columns:1fr 1fr}
+  .schedule-copy{grid-column:1/-1}
+  #saveScheduleBtn{grid-column:1/-1;grid-row:auto;min-height:46px}
+}
