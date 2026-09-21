@@ -8,7 +8,9 @@ async function updateWatchInventory(env,w,stores,checkedAt,error=null){
   if(now&&w.status!=="available"&&!notified){try{const names=available.slice(0,3).map(s=>s.storeName).join(", ");await push(env,w.device_id,{title:`${w.label} is in stock`,body:`${names}. Tap to buy from Apple.`,url:w.product_url||"/"});notified=1}catch(e){console.log(e.message)}}else if(state==="unavailable")notified=0;
   await env.DB.prepare("UPDATE watches SET status=?,stores_json=?,last_checked_at=?,last_error=?,notified_available=? WHERE id=?").bind(state,JSON.stringify(nearest),checkedAt,error,notified,w.id).run()
 }
+function isSleepWindow(){const parts=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hour:"numeric",hour12:false}).formatToParts(new Date()),hour=Number(parts.find(x=>x.type==="hour")?.value);return hour>=2&&hour<9}
 async function checkLocation(env,key,force=false){
+  if(!force&&isSleepWindow())return;
   if(!force){const b=await env.DB.prepare("SELECT until_ms FROM location_backoff WHERE location=?").bind(key).first();if(b&&+b.until_ms>Date.now())return}
   const rows=(await env.DB.prepare("SELECT * FROM watches WHERE location=?").bind(key).all()).results||[];if(!rows.length)return;
   const apple=rows.filter(w=>!String(w.part).startsWith("RETAIL:"));
