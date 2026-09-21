@@ -10,7 +10,7 @@
     "keys": "node scripts/generate-vapid.js",
     "db:local": "wrangler d1 execute stockping-db --local --file=./schema.sql",
     "db:remote": "wrangler d1 execute stockping-db --remote --file=./schema.sql",
-    "check": "node --check src/index.js && node --check src/inventory.js && node --check public/app.js && node --check public/sw.js"
+    "check": "node --check src/index.js && node --check src/inventory.js && node --check src/retailers.js && node --check public/app.js && node --check public/sw.js"
   },
   "engines": { "node": ">=20" },
   "dependencies": { "@mmmike/web-push": "^1.0.1" },
