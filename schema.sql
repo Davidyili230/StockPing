@@ -26,3 +26,12 @@ CREATE TABLE IF NOT EXISTS location_backoff (
   location TEXT PRIMARY KEY,
   until_ms INTEGER NOT NULL
 );
+
+
+CREATE TABLE IF NOT EXISTS device_settings (
+  device_id TEXT PRIMARY KEY,
+  active_start TEXT NOT NULL DEFAULT '09:00',
+  active_end TEXT NOT NULL DEFAULT '02:00',
+  timezone TEXT NOT NULL DEFAULT 'America/New_York',
+  updated_at TEXT NOT NULL
+);
