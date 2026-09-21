@@ -18,7 +18,7 @@ async function checkLocation(env,key,force=false){
     await env.DB.prepare("DELETE FROM location_backoff WHERE location=?").bind(key).run()
   }catch(e){
     if(e.status===429||e.status===541)await env.DB.prepare("INSERT INTO location_backoff(location,until_ms) VALUES(?,?) ON CONFLICT(location) DO UPDATE SET until_ms=excluded.until_ms").bind(key,Date.now()+600000).run();
-    for(const w of apple)await env.DB.prepare("UPDATE watches SET status='unknown',last_checked_at=?,last_error=? WHERE id=?").bind(new Date().toISOString(),e.message,w.id).run()
+    for(const w of apple)await env.DB.prepare("UPDATE watches SET last_error=? WHERE id=?").bind(e.message,w.id).run()
   }
 }
 async function api(req,env,u){const p=u.pathname;if(p==="/api/health")return json({ok:true});if(p==="/api/config")return json({pushConfigured:!!(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),vapidPublicKey:env.VAPID_PUBLIC_KEY||"",checkIntervalMs:+env.CHECK_INTERVAL_MS||60000});if(p==="/api/catalog")return json({products:publicCatalog()});if(p==="/api/discover"&&req.method==="POST"){const b=await body(req);try{const d=await discoverAppleConfigurations({productId:b.catalogProductId,country:String(b.country||"US").toUpperCase(),location:b.location});return json({product:{id:d.product.id,name:d.product.name},configurations:d.configurations})}catch(e){return json({error:e.message},502)}}
